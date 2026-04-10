@@ -1,7 +1,12 @@
 node_modules/
 *.log
-*.dta
-*.rtf
-*.docx
 stata-mcp-folder/
 .DS_Store
+
+# 默认忽略数据和结果文件（demo 目录）
+demo/*.dta
+demo/*.rtf
+demo/*.docx
+
+# case-study 目录的真实数据和结果需要上传，故不忽略
+# （data.dta、results/*.rtf、results/*.docx 等均需入库）
