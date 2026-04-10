@@ -1,0 +1,7 @@
+node_modules/
+*.log
+*.dta
+*.rtf
+*.docx
+stata-mcp-folder/
+.DS_Store

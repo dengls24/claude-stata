@@ -1,0 +1,14 @@
+{
+  "name": "claude-stata",
+  "version": "1.0.0",
+  "description": "Claude Code + Stata: AI-Driven Empirical Economics Workflow",
+  "scripts": {
+    "demo": "node demo/demo_report.js"
+  },
+  "keywords": ["stata", "claude", "economics", "empirical", "panel-data", "reghdfe"],
+  "author": "dengls24",
+  "license": "MIT",
+  "dependencies": {
+    "docx": "^9.0.0"
+  }
+}
