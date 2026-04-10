@@ -360,7 +360,15 @@ NODE_PATH="C:/Users/YourName/AppData/Roaming/npm/node_modules" node demo/demo_re
 claude-stata/
 ├── README.md                      # 本文件：方法论 + 实战记录
 ├── CLAUDE.md                      # Claude Code 项目指令模板（面板数据项目）
-├── demo/
+├── case-study/                    # 真实案例：AI 技术应用对企业创新的影响
+│   ├── README.md                  # 案例说明与变量文档
+│   ├── data.dta                   # 原始面板数据（A 股上市公司，2009–2022）
+│   ├── stata_analysis.do          # 原版 Stata 程序（论文附件原版）
+│   ├── stata_full_run.do          # 生产版：含自动装包 + 批处理兼容修复
+│   ├── python_analysis.py         # Python 转译版（无需 Stata 许可证）
+│   ├── generate_report.js         # Node.js Word 报告自动生成
+│   └── results/                   # 13 个输出文件（RTF / CSV / DOCX）
+├── demo/                          # 模拟数据 demo（无需真实数据即可运行）
 │   ├── demo_data_gen.do           # 生成模拟面板数据（500 企业 × 14 年）
 │   ├── demo_analysis.do           # 完整实证分析 do-file
 │   └── demo_report.js             # Node.js 自动生成 Word 分析报告
@@ -382,17 +390,16 @@ cd claude-stata
 # 配置 stata-mcp（项目级）
 claude mcp add stata-mcp --env STATA_MCP_CWD=$(pwd) --scope project -- uvx stata-mcp
 
-# 安装 Stata Skill
-# 在 Claude Code 中执行：
-# /plugin marketplace add dylantmoore/stata-skill
-# /plugin install stata@dylantmoore-stata-skill
+# 运行真实案例（MCP 方式）
+cd case-study
+# 在 Claude Code 中输入：请帮我运行 stata_full_run.do，数据是 data.dta
 
-# 运行 demo（在 Stata 中）
+# 或用 Python（无需 Stata）
+pip install pandas numpy statsmodels linearmodels
+python case-study/python_analysis.py
+
+# 运行模拟 demo（无需真实数据）
 # do scripts/setup_and_run.do
-
-# 或通过 Claude Code 体验完整 AI 驱动流程
-claude
-# 输入：请帮我运行 demo 分析，生成回归结果和 Word 报告
 ```
 
 ---
