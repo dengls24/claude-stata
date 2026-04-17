@@ -80,6 +80,47 @@ claude mcp add stata-mcp \
 claude mcp add stata-mcp --scope user -- uvx stata-mcp
 ```
 
+**macOS 用户**：Stata 通常安装在 `/Applications/Stata/`，路径因版本而异：
+
+```bash
+# 检查 Stata 实际路径
+ls /Applications/Stata/
+
+# 项目级配置（推荐）
+claude mcp add stata-mcp \
+  --env STATA_PATH="/Applications/Stata/StataMP.app/Contents/MacOS/StataMP" \
+  --env STATA_MCP_CWD=$(pwd) \
+  --scope project \
+  -- uvx stata-mcp
+```
+
+或在 `~/.claude/settings.json` 中配置：
+
+```json
+{
+  "mcpServers": {
+    "stata-mcp": {
+      "command": "uvx",
+      "args": ["stata-mcp"],
+      "env": {
+        "STATA_PATH": "/Applications/Stata/StataMP.app/Contents/MacOS/StataMP",
+        "STATA_MCP_CWD": "/Users/yourname/your-project"
+      }
+    }
+  }
+}
+```
+
+常见 macOS Stata 路径：
+
+| 版本 | 路径 |
+|------|------|
+| Stata 18 MP | `/Applications/Stata/StataMP.app/Contents/MacOS/StataMP` |
+| Stata 18 SE | `/Applications/Stata/StataSE.app/Contents/MacOS/StataSE` |
+| Stata 17 MP | `/Applications/Stata17/StataMP.app/Contents/MacOS/StataMP` |
+
+> **macOS 注意**：如果 `uvx stata-mcp --usable` 报找不到 Stata，先确认路径后用 `STATA_PATH` 显式指定。
+
 **Windows 用户**：需要在 `~/.claude/settings.json` 中显式指定 Stata 路径：
 
 ```json
@@ -199,9 +240,72 @@ Claude 会自动：
 
 ---
 
-### 踩坑记录（Windows 原生环境实测）
+### 踩坑记录（Windows / macOS 实测）
 
 这些坑均在实操中真实遇到，不是理论推演：
+
+#### macOS 特有问题
+
+##### M1. ZIP 解压后中文文件名乱码
+
+**现象**：macOS 打包的 ZIP 在 Windows 解压后，中文文件名变成乱码（如 `鏁版嵁.dta`）。
+
+**原因**：macOS ZIP 用 UTF-8 编码文件名，Windows 解压工具按 GBK/CP936 解读。
+
+**解法**：用 Python 脚本修复：
+
+```python
+import os
+
+for fname in os.listdir('.'):
+    try:
+        correct = fname.encode('gbk').decode('utf-8')
+        if correct != fname:
+            os.rename(fname, correct)
+            print(f"已修复: {fname} -> {correct}")
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        pass
+```
+
+> macOS 用户自己解压不会遇到此问题；将项目传给 Windows 用户时需提醒。
+
+---
+
+##### M2. do-file 含 UTF-8 BOM 导致批处理静默失败
+
+**现象**：Stata 批处理执行后没有任何日志输出，也不报错，程序像没运行一样。
+
+**原因**：用 Python 写 do-file 时若用 `encoding='utf-8-sig'`（带 BOM），Stata 无法识别文件头。
+
+**解法**：始终用 `encoding='utf-8'`（无 BOM）写 do-file：
+
+```python
+# 错误（带 BOM）
+with open('analysis.do', 'w', encoding='utf-8-sig') as f: ...
+
+# 正确（无 BOM）
+with open('analysis.do', 'w', encoding='utf-8') as f: ...
+```
+
+---
+
+##### M3. macOS 上 `log using` 中文路径报错
+
+**现象**：`log using "/Users/yourname/研究项目/结果.log"` 报 `r(603)`。
+
+**解法**：移除 `log using`，Stata 批处理会自动在工作目录生成同名 `.log` 文件：
+
+```stata
+* 不需要写 log using
+cd "/Users/yourname/研究项目"
+use 数据.dta, clear
+reghdfe y x $controls, absorb(id year) vce(cluster industry_group#year)
+* 日志自动生成为 analysis.log
+```
+
+---
+
+#### Windows 特有问题
 
 #### 1. `logout` 在批处理下永久卡住
 
@@ -386,10 +490,41 @@ claude-stata/
 ```bash
 git clone https://github.com/dengls24/claude-stata.git
 cd claude-stata
+```
 
+**macOS 用户：**
+
+```bash
+# 1. 安装 uv（如未安装）
+brew install uv
+# 或：curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 2. 确认 Stata 路径
+ls /Applications/Stata/          # 查看实际目录名
+# 常见：StataMP.app / StataSE.app / Stata.app
+
+# 3. 配置 stata-mcp（项目级）
+claude mcp add stata-mcp \
+  --env STATA_PATH="/Applications/Stata/StataMP.app/Contents/MacOS/StataMP" \
+  --env STATA_MCP_CWD=$(pwd) \
+  --scope project \
+  -- uvx stata-mcp
+
+# 4. 验证
+claude mcp list   # 应看到 stata-mcp
+uvx stata-mcp --usable   # 应输出 Stata 版本信息
+```
+
+**Windows 用户：**
+
+```bash
 # 配置 stata-mcp（项目级）
 claude mcp add stata-mcp --env STATA_MCP_CWD=$(pwd) --scope project -- uvx stata-mcp
+```
 
+**运行案例：**
+
+```bash
 # 运行真实案例（MCP 方式）
 cd case-study
 # 在 Claude Code 中输入：请帮我运行 stata_full_run.do，数据是 data.dta
@@ -443,6 +578,43 @@ claude mcp add stata-mcp \
   --scope project \
   -- uvx stata-mcp
 ```
+
+**macOS** — Stata lives inside an `.app` bundle; specify the binary path explicitly:
+
+```bash
+claude mcp add stata-mcp \
+  --env STATA_PATH="/Applications/Stata/StataMP.app/Contents/MacOS/StataMP" \
+  --env STATA_MCP_CWD=$(pwd) \
+  --scope project \
+  -- uvx stata-mcp
+```
+
+Or in `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "stata-mcp": {
+      "command": "uvx",
+      "args": ["stata-mcp"],
+      "env": {
+        "STATA_PATH": "/Applications/Stata/StataMP.app/Contents/MacOS/StataMP",
+        "STATA_MCP_CWD": "/Users/yourname/your-project"
+      }
+    }
+  }
+}
+```
+
+Common macOS paths by version:
+
+| Version | Path |
+|---------|------|
+| Stata 18 MP | `/Applications/Stata/StataMP.app/Contents/MacOS/StataMP` |
+| Stata 18 SE | `/Applications/Stata/StataSE.app/Contents/MacOS/StataSE` |
+| Stata 17 MP | `/Applications/Stata17/StataMP.app/Contents/MacOS/StataMP` |
+
+> If `uvx stata-mcp --usable` can't find Stata, verify the path with `ls /Applications/Stata/` first.
 
 **Windows** — specify Stata path explicitly in `~/.claude/settings.json`:
 
